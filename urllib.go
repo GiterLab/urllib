@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-// Package urllib is a httplib for ots2
+// Package urllib is a httplib for golang
 package urllib
 
 import (
@@ -235,6 +235,11 @@ func (b *HttpRequest) SetProtocolVersion(vers string) *HttpRequest {
 func (b *HttpRequest) SetCookie(cookie *http.Cookie) *HttpRequest {
 	b.req.Header.Add("Cookie", cookie.String())
 	return b
+}
+
+// Get default CookieJar
+func GetDefaultCookieJar() http.CookieJar {
+	return defaultCookieJar
 }
 
 // Set transport to
