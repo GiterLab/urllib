@@ -3,10 +3,31 @@ urllib is an libs help you to curl remote url using golang.
 
 # How to use?
 
+## Example
+
+	package main
+	
+	import (
+		"fmt"
+	
+		"github.com/GiterLab/urllib"
+	)
+	
+	func main() {
+		req := urllib.Get("http://tobyzxj.me/")
+		req.Debug(true)
+		str, err := req.String()
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(req.DumpRequestString()) // debug out
+		fmt.Println(str)
+	}
+
 ## GET
 you can use Get to crawl data.
 
-	import "github.com/GiterLab/goots/urllib"
+	import "github.com/GiterLab/urllib"
 	
 	str, err := urllib.Get("http://tobyzxj.me/").String()
 	if err != nil {

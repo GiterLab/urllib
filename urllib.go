@@ -189,6 +189,11 @@ func (b *HttpRequest) DumpRequest() []byte {
 	return b.dump
 }
 
+// return the DumpRequest string
+func (b *HttpRequest) DumpRequestString() string {
+	return string(b.DumpRequest())
+}
+
 // SetTimeout sets connect time out and read-write time out for Request.
 func (b *HttpRequest) SetTimeout(connectTimeout, readWriteTimeout time.Duration) *HttpRequest {
 	b.setting.ConnectTimeout = connectTimeout
