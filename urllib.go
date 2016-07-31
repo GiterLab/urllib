@@ -122,6 +122,11 @@ func Head(url string) *HttpRequest {
 	return newRequest(url, "HEAD")
 }
 
+// Head returns *HttpRequest with PATCH method.
+func Patch(url string) *HttpRequest {
+	return newRequest(url, "PATCH")
+}
+
 // HttpSettings
 type HttpSettings struct {
 	ShowDebug        bool
