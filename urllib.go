@@ -48,7 +48,7 @@ func createDefaultCookie() {
 	defaultCookieJar, _ = cookiejar.New(nil)
 }
 
-// Overwrite default settings
+// SetDefaultSetting Overwrite default settings
 func SetDefaultSetting(setting HttpSettings) {
 	settingMutex.Lock()
 	defer settingMutex.Unlock()
@@ -61,7 +61,7 @@ func SetDefaultSetting(setting HttpSettings) {
 	}
 }
 
-// Get current default settings
+// GetDefaultSetting Get current default settings
 func GetDefaultSetting() *HttpSettings {
 	settingMutex.Lock()
 	defer settingMutex.Unlock()
@@ -122,12 +122,12 @@ func Head(url string) *HttpRequest {
 	return newRequest(url, "HEAD")
 }
 
-// Head returns *HttpRequest with PATCH method.
+// Patch returns *HttpRequest with PATCH method.
 func Patch(url string) *HttpRequest {
 	return newRequest(url, "PATCH")
 }
 
-// HttpSettings
+// HttpSettings http settings
 type HttpSettings struct {
 	ShowDebug        bool
 	UserAgent        string
@@ -153,7 +153,7 @@ type HttpRequest struct {
 	dump    []byte
 }
 
-// Change request settings
+// Setting Change request settings
 func (b *HttpRequest) Setting(setting HttpSettings) *HttpRequest {
 	b.setting = setting
 	return b
@@ -183,18 +183,18 @@ func (b *HttpRequest) Debug(isdebug bool) *HttpRequest {
 	return b
 }
 
-// Dump Body.
+// DumpBody Dump Body.
 func (b *HttpRequest) DumpBody(isdump bool) *HttpRequest {
 	b.setting.DumpBody = isdump
 	return b
 }
 
-// return the DumpRequest
+// DumpRequest return the DumpRequest
 func (b *HttpRequest) DumpRequest() []byte {
 	return b.dump
 }
 
-// return the DumpRequest string
+// DumpRequestString return the DumpRequest string
 func (b *HttpRequest) DumpRequestString() string {
 	return string(b.DumpRequest())
 }
@@ -218,13 +218,19 @@ func (b *HttpRequest) Header(key, value string) *HttpRequest {
 	return b
 }
 
-// Set HOST
+// HeaderWithoutMIMEHeader add header item string in request without MIMEHeader.
+func (b *HttpRequest) HeaderWithoutMIMEHeader(key, value string) *HttpRequest {
+	b.req.Header[key] = []string{value}
+	return b
+}
+
+// SetHost Set HOST
 func (b *HttpRequest) SetHost(host string) *HttpRequest {
 	b.req.Host = host
 	return b
 }
 
-// Set the protocol version for incoming requests.
+// SetProtocolVersion Set the protocol version for incoming requests.
 // Client requests always use HTTP/1.1.
 func (b *HttpRequest) SetProtocolVersion(vers string) *HttpRequest {
 	if len(vers) == 0 {
@@ -247,18 +253,18 @@ func (b *HttpRequest) SetCookie(cookie *http.Cookie) *HttpRequest {
 	return b
 }
 
-// Get default CookieJar
+// GetDefaultCookieJar Get default CookieJar
 func GetDefaultCookieJar() http.CookieJar {
 	return defaultCookieJar
 }
 
-// Set transport to
+// SetTransport Set transport to
 func (b *HttpRequest) SetTransport(transport http.RoundTripper) *HttpRequest {
 	b.setting.Transport = transport
 	return b
 }
 
-// Set http proxy
+// SetProxy Set http proxy
 // example:
 //
 //	func(req *http.Request) (*url.URL, error) {
@@ -277,6 +283,7 @@ func (b *HttpRequest) Param(key, value string) *HttpRequest {
 	return b
 }
 
+// PostFile upload file
 func (b *HttpRequest) PostFile(formname, filename string) *HttpRequest {
 	b.files[formname] = filename
 	return b
@@ -298,8 +305,8 @@ func (b *HttpRequest) Body(data interface{}) *HttpRequest {
 	return b
 }
 
-// JsonBody adds request raw body encoding by JSON.
-func (b *HttpRequest) JsonBody(obj interface{}) (*HttpRequest, error) {
+// JSONBody adds request raw body encoding by JSON.
+func (b *HttpRequest) JSONBody(obj interface{}) (*HttpRequest, error) {
 	if b.req.Body == nil && obj != nil {
 		buf := bytes.NewBuffer(nil)
 		enc := json.NewEncoder(buf)
@@ -313,7 +320,7 @@ func (b *HttpRequest) JsonBody(obj interface{}) (*HttpRequest, error) {
 	return b, nil
 }
 
-func (b *HttpRequest) buildUrl(paramBody string) {
+func (b *HttpRequest) buildURL(paramBody string) {
 	// build GET url with query string
 	if b.req.Method == "GET" && len(paramBody) > 0 {
 		if strings.Index(b.url, "?") != -1 {
@@ -378,6 +385,7 @@ func (b *HttpRequest) getResponse() (*http.Response, error) {
 	return resp, nil
 }
 
+// SendOut send out
 func (b *HttpRequest) SendOut() (*http.Response, error) {
 	var paramBody string
 	if len(b.params) > 0 {
@@ -392,7 +400,7 @@ func (b *HttpRequest) SendOut() (*http.Response, error) {
 		paramBody = paramBody[0 : len(paramBody)-1]
 	}
 
-	b.buildUrl(paramBody)
+	b.buildURL(paramBody)
 	url, err := url.Parse(b.url)
 	if err != nil {
 		return nil, err
