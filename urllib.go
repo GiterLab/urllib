@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -19,12 +20,19 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httputil"
+	"net/textproto"
 	"net/url"
 	"os"
 	"strings"
 	"sync"
 	"time"
 )
+
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
+func escapeQuotes(s string) string {
+	return quoteEscaper.Replace(s)
+}
 
 var defaultSetting = HttpSettings{
 	ShowDebug:        false,
@@ -90,10 +98,11 @@ func newRequest(rawurl, method string) *HttpRequest {
 		url:     rawurl,
 		req:     &req,
 		params:  map[string]string{},
-		files:   map[string]string{},
+		files:   map[string]FileInfo{},
 		setting: defaultSetting,
 		resp:    &resp,
 		body:    nil,
+		dump:    nil,
 	}
 }
 
@@ -141,12 +150,19 @@ type HttpSettings struct {
 	DumpBody         bool
 }
 
+// FileInfo file info
+type FileInfo struct {
+	Filename    string    // Filename
+	ContentType string    // MIME
+	Read        io.Reader // reader for streaming
+}
+
 // HttpRequest provides more useful methods for requesting one url than http.Request.
 type HttpRequest struct {
 	url     string
 	req     *http.Request
 	params  map[string]string
-	files   map[string]string
+	files   map[string]FileInfo
 	setting HttpSettings
 	resp    *http.Response
 	body    []byte
@@ -268,9 +284,9 @@ func (b *HttpRequest) SetTransport(transport http.RoundTripper) *HttpRequest {
 // example:
 //
 //	func(req *http.Request) (*url.URL, error) {
-// 		u, _ := url.ParseRequestURI("http://127.0.0.1:8118")
-// 		return u, nil
-// 	}
+//		u, _ := url.ParseRequestURI("http://127.0.0.1:8118")
+//		return u, nil
+//	}
 func (b *HttpRequest) SetProxy(proxy func(*http.Request) (*url.URL, error)) *HttpRequest {
 	b.setting.Proxy = proxy
 	return b
@@ -285,7 +301,13 @@ func (b *HttpRequest) Param(key, value string) *HttpRequest {
 
 // PostFile upload file
 func (b *HttpRequest) PostFile(formname, filename string) *HttpRequest {
-	b.files[formname] = filename
+	b.files[formname] = FileInfo{filename, "application/octet-stream", nil}
+	return b
+}
+
+// PostFileFromReader upload file from io.Reader
+func (b *HttpRequest) PostFileFromReader(formname, filename string, fileType string, reader io.Reader) *HttpRequest {
+	b.files[formname] = FileInfo{filename, fileType, reader}
 	return b
 }
 
@@ -338,20 +360,33 @@ func (b *HttpRequest) buildURL(paramBody string) {
 			pr, pw := io.Pipe()
 			bodyWriter := multipart.NewWriter(pw)
 			go func() {
-				for formname, filename := range b.files {
-					fileWriter, err := bodyWriter.CreateFormFile(formname, filename)
+				for formname, fileInfo := range b.files {
+					h := make(textproto.MIMEHeader)
+					h.Set("Content-Disposition",
+						fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+							escapeQuotes(formname), escapeQuotes(fileInfo.Filename)))
+					h.Set("Content-Type", fileInfo.ContentType)
+					fileWriter, err := bodyWriter.CreatePart(h)
 					if err != nil {
 						log.Fatal(err)
 					}
-					fh, err := os.Open(filename)
-					if err != nil {
-						log.Fatal(err)
-					}
-					//iocopy
-					_, err = io.Copy(fileWriter, fh)
-					fh.Close()
-					if err != nil {
-						log.Fatal(err)
+					if fileInfo.Read != nil {
+						// iocopy
+						_, err = io.Copy(fileWriter, fileInfo.Read)
+						if err != nil {
+							log.Fatal(err)
+						}
+					} else {
+						fh, err := os.Open(fileInfo.Filename)
+						if err != nil {
+							log.Fatal(err)
+						}
+						defer fh.Close()
+						// iocopy
+						_, err = io.Copy(fileWriter, fh)
+						if err != nil {
+							log.Fatal(err)
+						}
 					}
 				}
 				for k, v := range b.params {
@@ -490,6 +525,7 @@ func (b *HttpRequest) Bytes() ([]byte, error) {
 			return nil, err
 		}
 		b.body, err = ioutil.ReadAll(reader)
+		return b.body, err
 	} else {
 		b.body, err = ioutil.ReadAll(resp.Body)
 	}
