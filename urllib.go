@@ -13,7 +13,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net"
@@ -317,11 +316,11 @@ func (b *HttpRequest) Body(data interface{}) *HttpRequest {
 	switch t := data.(type) {
 	case string:
 		bf := bytes.NewBufferString(t)
-		b.req.Body = ioutil.NopCloser(bf)
+		b.req.Body = io.NopCloser(bf)
 		b.req.ContentLength = int64(len(t))
 	case []byte:
 		bf := bytes.NewBuffer(t)
-		b.req.Body = ioutil.NopCloser(bf)
+		b.req.Body = io.NopCloser(bf)
 		b.req.ContentLength = int64(len(t))
 	}
 	return b
@@ -335,7 +334,7 @@ func (b *HttpRequest) JSONBody(obj interface{}) (*HttpRequest, error) {
 		if err := enc.Encode(obj); err != nil {
 			return b, err
 		}
-		b.req.Body = ioutil.NopCloser(buf)
+		b.req.Body = io.NopCloser(buf)
 		b.req.ContentLength = int64(buf.Len())
 		b.req.Header.Set("Content-Type", "application/json")
 	}
@@ -345,7 +344,7 @@ func (b *HttpRequest) JSONBody(obj interface{}) (*HttpRequest, error) {
 func (b *HttpRequest) buildURL(paramBody string) {
 	// build GET url with query string
 	if b.req.Method == "GET" && len(paramBody) > 0 {
-		if strings.Index(b.url, "?") != -1 {
+		if strings.Contains(b.url, "?") {
 			b.url += "&" + paramBody
 		} else {
 			b.url = b.url + "?" + paramBody
@@ -396,7 +395,7 @@ func (b *HttpRequest) buildURL(paramBody string) {
 				pw.Close()
 			}()
 			b.Header("Content-Type", bodyWriter.FormDataContentType())
-			b.req.Body = ioutil.NopCloser(pr)
+			b.req.Body = io.NopCloser(pr)
 			return
 		}
 
@@ -524,10 +523,10 @@ func (b *HttpRequest) Bytes() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		b.body, err = ioutil.ReadAll(reader)
+		b.body, err = io.ReadAll(reader)
 		return b.body, err
 	} else {
-		b.body, err = ioutil.ReadAll(resp.Body)
+		b.body, err = io.ReadAll(resp.Body)
 	}
 	return b.body, err
 }
